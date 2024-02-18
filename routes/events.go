@@ -2,7 +2,6 @@ package routes
 
 import (
 	"goapiauth/models"
-	"goapiauth/utils"
 	"net/http"
 	"strconv"
 
@@ -44,32 +43,15 @@ func getEvent(c *gin.Context) {
 }
 
 func createEvents(c *gin.Context) {
-	token := c.Request.Header.Get("Authorization")
-	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Unauthorize access",
-		})
-		return
-	}
-
-	err := utils.VerifyToken(token)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Unauthorize access. Invalid token",
-		})
-		return
-	}
-
 	var event models.Event
-	err = c.ShouldBindJSON(&event)
+	err := c.ShouldBindJSON(&event)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Could not parse request",
 		})
 		return
 	}
-	// event.ID = 1
-	event.UserID = 1234
+	event.UserID = c.GetInt64("userId")
 	err = event.Save()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -91,13 +73,25 @@ func updateEvents(c *gin.Context) {
 		})
 		return
 	}
-	_, err = models.GetEventById(eventId)
+
+	userId := c.GetInt64("userId")
+	event, err := models.GetEventById(eventId)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Could not fetch the event.",
 		})
 		return
 	}
+
+	// Authorization
+	if event.UserID != userId {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Unauthorize access",
+		})
+		return
+	}
+
 	var updatedEvent models.Event
 	err = c.ShouldBindJSON(&updatedEvent)
 	if err != nil {
