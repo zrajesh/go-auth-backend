@@ -2,6 +2,7 @@ package routes
 
 import (
 	"goapiauth/models"
+	"goapiauth/utils"
 	"net/http"
 	"strconv"
 
@@ -43,15 +44,31 @@ func getEvent(c *gin.Context) {
 }
 
 func createEvents(c *gin.Context) {
+	token := c.Request.Header.Get("Authorization")
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Unauthorize access",
+		})
+		return
+	}
+
+	err := utils.VerifyToken(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Unauthorize access. Invalid token",
+		})
+		return
+	}
+
 	var event models.Event
-	err := c.ShouldBindJSON(&event)
+	err = c.ShouldBindJSON(&event)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Could not parse request",
 		})
 		return
 	}
-	event.ID = 1
+	// event.ID = 1
 	event.UserID = 1234
 	err = event.Save()
 	if err != nil {
